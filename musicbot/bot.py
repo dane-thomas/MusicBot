@@ -21,6 +21,7 @@ from functools import wraps
 from textwrap import dedent
 from datetime import timedelta
 from collections import defaultdict
+from random import randint
 
 from discord.enums import ChannelType
 
@@ -497,6 +498,8 @@ class MusicBot(discord.Client):
         if guild.id in self.players:
             self.players.pop(guild.id).kill()
 
+        log.info("Disconnecting from vc")
+
         await vc.disconnect()
 
     async def disconnect_all_voice_clients(self):
@@ -669,6 +672,13 @@ class MusicBot(discord.Client):
             last_np_msg = self.server_specific_data[guild]["last_np_msg"]
             if last_np_msg:
                 await self.safe_delete_message(last_np_msg)
+
+        # leave if no one left in the voice channel
+        if self._check_if_empty(player.voice_client.channel):
+            log.info("No one in channel. Disconnecting from empty channel")
+            self.disconnect_voice_client(player.voice_client.guild)
+
+
 
         def _autopause(player):
             if self._check_if_empty(player.voice_client.channel):
@@ -2817,7 +2827,7 @@ class MusicBot(discord.Client):
         log.info("Joining {0.guild.name}/{0.name}".format(author.voice.channel))
 
         return Response(
-            self.str.get("cmd-summon-reply", "Connected to `{0.name}`").format(
+            self.str.get("cmd-summon-reply", "Allow me to introduce myself. \n Connected to `{0.name}`").format(
                 author.voice.channel
             )
         )
@@ -3400,6 +3410,24 @@ class MusicBot(discord.Client):
         message = "\n".join(lines)
         return Response(message, delete_after=30)
 
+    async def cmd_rng(self, a=None, b=None):
+        """
+        Usage:
+            {command_prefix}rng [max] or {command_prefix}rng [min] [max]
+
+        Generates a random number within the range. Default: [0, 10]
+        """
+        min = 0
+        max = 10
+
+        if (b is not None):
+            min = int(a)
+            max = int(b)
+        elif (a is not None):
+            max = int(a)
+
+        return Response(randint(min, max), reply=True)
+
     async def cmd_clean(self, message, channel, guild, author, search_range=50):
         """
         Usage:
@@ -3717,7 +3745,7 @@ class MusicBot(discord.Client):
         Forces the bot leave the current voice channel.
         """
         await self.disconnect_voice_client(guild)
-        return Response("Disconnected from `{0.name}`".format(guild), delete_after=20)
+        return Response("Aw hell, we’ve been kicked out of much better places than this. \n Disconnected from `{0.name}`".format(guild), delete_after=20)
 
     async def cmd_restart(self, channel):
         """
@@ -4165,6 +4193,12 @@ class MusicBot(discord.Client):
             member == self.user and not after.channel
         ):  # if bot was disconnected from channel
             await self.disconnect_voice_client(before.channel.guild)
+            return
+
+        # leave if no one left in the voice channel
+        if (member != self.user and self._check_if_empty(channel)):
+            log.info("No one in channel. Disconnecting from empty channel")
+            await self.disconnect_voice_client(channel.guild)
             return
 
         if not self.config.auto_pause:
