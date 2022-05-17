@@ -4195,8 +4195,13 @@ class MusicBot(discord.Client):
             await self.disconnect_voice_client(before.channel.guild)
             return
 
+        try:
+            player = await self.get_player(channel)
+        except exceptions.CommandError:
+            return
+
         # leave if no one left in the voice channel
-        if (member != self.user and self._check_if_empty(channel)):
+        if (member != self.user and player.voice_client.channel == before.channel and self._check_if_empty(channel)):
             log.info("No one in channel. Disconnecting from empty channel")
             await self.disconnect_voice_client(channel.guild)
             return
@@ -4207,11 +4212,6 @@ class MusicBot(discord.Client):
         autopause_msg = "{state} in {channel.guild.name}/{channel.name} {reason}"
 
         auto_paused = self.server_specific_data[channel.guild]["auto_paused"]
-
-        try:
-            player = await self.get_player(channel)
-        except exceptions.CommandError:
-            return
 
         def is_active(member):
             if not member.voice:
