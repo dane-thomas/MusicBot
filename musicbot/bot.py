@@ -47,6 +47,7 @@ from .utils import (
 )
 from .spotify import Spotify
 from .json import Json
+from .fifteen_api import FifteenAPI
 
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
@@ -102,6 +103,8 @@ class MusicBot(discord.Client):
 
         self.aiolocks = defaultdict(asyncio.Lock)
         self.downloader = downloader.Downloader(download_folder="audio_cache")
+
+        self.tts_api = FifteenAPI()
 
         log.info("Starting MusicBot {}".format(BOTVERSION))
 
@@ -678,8 +681,6 @@ class MusicBot(discord.Client):
             log.info("No one in channel. Disconnecting from empty channel")
             self.disconnect_voice_client(player.voice_client.guild)
 
-
-
         def _autopause(player):
             if self._check_if_empty(player.voice_client.channel):
                 log.info("Player finished playing, autopaused in empty channel")
@@ -1085,7 +1086,7 @@ class MusicBot(discord.Client):
                 "Bot cannot login, bad credentials.",
                 "Fix your token in the options file.  "
                 "Remember that each field should be on their own line.",
-            )  #     ^^^^ In theory self.config.auth should never have no items
+            )  # ^^^^ In theory self.config.auth should never have no items
 
         finally:
             try:
@@ -3159,6 +3160,9 @@ class MusicBot(discord.Client):
                 delete_after=20,
             )
 
+    async def cmd_skip_force(self, player, channel, author, message, permissions, voice_channel):
+        return await self.cmd_skip(player, channel, author, message, permissions, voice_channel, "f")
+
     async def cmd_volume(self, message, player, new_volume=None):
         """
         Usage:
@@ -3417,7 +3421,7 @@ class MusicBot(discord.Client):
 
         Generates a random number within the range. Default: [0, 10]
         """
-        min = 0
+        min = 1
         max = 10
 
         if (b is not None):
@@ -3898,7 +3902,7 @@ class MusicBot(discord.Client):
         command, *args = message_content.split(
             " "
         )  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
-        command = command[len(self.config.command_prefix) :].lower().strip()
+        command = command[len(self.config.command_prefix):].lower().strip()
 
         # [] produce [''] which is not what we want (it break things)
         if args:
