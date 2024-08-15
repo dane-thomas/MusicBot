@@ -56,6 +56,10 @@ class Config:
             "Credentials", "Token", fallback=ConfigDefaults.token
         )
 
+        self.ollama_endpoint = config.get(
+            "Credentials", "Ollama_Endpoint", fallback=ConfigDefaults.token
+        )
+
         self.auth = ()
 
         self.spotify_clientid = config.get(

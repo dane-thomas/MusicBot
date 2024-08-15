@@ -3894,8 +3894,20 @@ class MusicBot(discord.Client):
 
     async def on_message(self, message):
         await self.wait_until_ready()
-
+        
         message_content = message.content.strip()
+
+        if self.user.mentioned_in(message):
+            async with message.channel.typing(): 
+                async with self.session.post(self.config.ollama_endpoint, json={
+                    "model": "sussy-model",
+                    "messages": [{ "role": "user", "content": message_content }],
+                    "stream": False
+                }) as resp:
+                    response = await resp.json()
+                    await self.safe_send_message(message.channel, response["message"]["content"])
+                    return
+
         if not message_content.startswith(self.config.command_prefix):
             return
 
