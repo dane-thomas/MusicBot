@@ -115,6 +115,8 @@ class MusicBot(discord.Client):
 
         self.tts_api = FifteenAPI()
 
+        self.llm_context = []
+
         log.info("Starting MusicBot {}".format(BOTVERSION))
 
         if not self.autoplaylist:
@@ -3899,13 +3901,18 @@ class MusicBot(discord.Client):
 
         if self.user.mentioned_in(message):
             async with message.channel.typing(): 
+                self.llm_context.append({ "role": "user", "content": message_content })
                 async with self.session.post(self.config.ollama_endpoint, json={
                     "model": "sussy-model",
-                    "messages": [{ "role": "user", "content": message_content }],
+                    "messages": self.llm_context,
                     "stream": False
                 }) as resp:
-                    response = await resp.json()
-                    await self.safe_send_message(message.channel, response["message"]["content"])
+                    content = (await resp.json())["message"]["content"]
+                    self.llm_context.append({"role": "assistant", "content": content})
+                    if len(self.llm_context) > 10: 
+                        self.llm_context = self.llm_context[1:]
+
+                    await self.safe_send_message(message.channel, content)
                     return
 
         if not message_content.startswith(self.config.command_prefix):
